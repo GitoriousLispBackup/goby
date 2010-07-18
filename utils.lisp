@@ -1,0 +1,5 @@
+(in-package :goby)
+(defmethod str ((str string)) str)
+(defmethod str ((sym symbol)) (string sym))
+(defmethod str (obj) (write-to-string obj))
+(defun strcat (&rest args) (apply #'concatenate 'string args))
