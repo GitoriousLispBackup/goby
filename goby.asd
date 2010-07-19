@@ -8,4 +8,4 @@
    (:file "walker")
    (:file "macro")
    (:file "goby"))
-  (:depends-on (iterate metabang-bind)))
+  :depends-on (iterate metabang-bind))
