@@ -1,5 +1,11 @@
 (in-package :goby)
-(defparameter *env* (make-hash-table :test #'equalp))
+(defun make-default-env (&optional toplevel)
+   (if toplevel
+       (let ((hash (make-default-env)))
+	 (setf (gethash :enclosing-type hash) :block)
+	 hash)
+       (make-hash-table :test #'equalp)))
+(defparameter *env* (make-default-env))
 (defun get-env (key) (gethash key *env*))
 
 (defmacro w/env! ((&key enclosing-type) &body body)
@@ -7,7 +13,8 @@
 	 (*env* (progn (setf (gethash :enclosing-type new-hash) ,(or enclosing-type (get-env :enclosing-type)))
 		       new-hash)))
      ,@body))
-
+(defvar *toplevel* (gensym))
+(defun toplevel? () (equalp *parent* *toplevel*))
 (defmacro w/block (&body body) `(w/env! (:enclosing-type :block) ,@body))
 (defun in-block? ()
   (equalp (get-env :enclosing-type) :block))
@@ -16,9 +23,10 @@
   (push  (list func *parent*) (gethash :parent-calls *env*)))
 
 ;;todo: make more efficient!
-(defun check-call (self)  
+(defun check-call (self)
   (iter
     (for (func parent-id) in (get-env :parent-calls))
+    
     (when (equalp (id-of self) parent-id)
       (assert (functionp func))
       (for result = (funcall func self))

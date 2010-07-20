@@ -21,8 +21,9 @@
      (let ((result-gen (with-slots (retv ,@slots)  self ,@body)))
        result-gen)))
 
+;;TODO: fix macros! parents are not good!
 (defwalk macro (&rest mac)
-  (walk! (mexpand-all mac) *retv* *use*))
+  (walk! (mexpand-all mac) *retv* *use* *env*))
 
 
 (defun walker-type (form)
@@ -38,22 +39,28 @@
 	 (t (error "unkown form type ~A" form)))))))
 
 (defparameter *use* nil)
-(defvar *parent* (gensym))
-(defvar *self* nil)
+
+(defvar *parent* *toplevel*)
+(defvar *self* *toplevel*)
+
 (defmethod walk! (form &optional  retv use env)
   (let ((type (walker-type form))
 	(*env* (or env
-		   (and (not (in-block?))
-			*env*)
-		   (make-hash-table
-		    :test #'equalp)))
+		  ; (and (toplevel?) (make-default-env t))
+		   (and (not (in-block?)) *env*)
+		   (make-default-env)))
 	(*parent* *self*)
 	(*self* (gensym)))
     (assert type)
     (let ((walker (walker type)))
       (assert (functionp walker))
-      (let ((*retv* retv) (*use* use))
-	(check-call (modify! (apply walker (mklst form)) :id *self*))))))
+      (let ((*retv* retv)
+	    (*use* use)
+	    (result (check-call (modify! (apply walker (mklst form))
+					 :id (if (equalp *parent* *toplevel*)
+						 (progn (format t "self is ~A" *self*) *self*)
+						 *self*)))))
+	result))))
 (defun walk-all! (forms &optional retv use)
   (mapcar (lambda (x) (walk! x retv use)) forms))
 

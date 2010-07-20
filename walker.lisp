@@ -158,15 +158,19 @@ non-embeddable! yeah!
 
 (defwalk function (name &rest args)
   (let (((embedded not-embedded) (embeddable-list args))
-	(function-form (new-form 'function-form :name name :arguments embedded)))
+	(function-form
+	 (new-form 'function-form :name name :arguments embedded)))
+    (format t "parent si ~A self is ~A" *parent* *self*)
+    (print embedded)
     (cond
       ((and not-embedded (not (in-block?)))
-       (prog1 function-form
+       (prog1 function-form (print "FUNCTION FORM")
+	      (print args)
 	 (call-parent
-	  (lambda (parent)
+	  (lambda (parent) (print "CAL") (print args) (print parent)
 		  (prognize parent retv not-embedded)))))
-      (not-embedded
-       (new-form 'implicit-progn :body (list not-embedded function-form)))
+      (not-embedded (print "implicit funmction")
+       (new-form 'implicit-progn :body (append not-embedded (list function-form))))
       (t function-form))))
 
 (defunwalk function-form (arguments name)
@@ -187,13 +191,32 @@ non-embeddable! yeah!
   (if (null (cdr args))
       (first args)
       `(if ,(first args)
-	   (and2 ,@(cdr args)))))
+	   (and2 ,@(cdr args))
+	   'False)))
+
+(defmac let (bindings &rest body)
+  `(progn
+     ,@(iter
+	(for (variable value) in bindings)
+	(collecting `(setq ,variable ,value)))
+     ,@body))
+
+
+;;TODO: automate constant folding in!
+;;for example
+;;(unwalk! (walk! '(or (if (not (gaush)) (print "HI") (print "LOW")) "NO!!!!!" "YES!!!")))
+;;we should have the first var constant plugged in!
 (defmac or2 (&rest args)
   (if (null (cdr args))
       (first args)
-      `(if (not ,(first args))
-	   'False
-	   (or2 ,@(cdr args)))))
+      (let ((gen-first (gensym))) (print (format t "first args is ~A"
+						 (first args)))
+	(if (atom (first args))
+	    `(if ,(first args) ,(first args) (or2 ,@(cdr args)))
+	    `(let ((,gen-first ,(first args)))
+	       (if ,gen-first
+		   ,gen-first
+		   (or2 ,@(cdr args))))))))
 
 (defwalk and (_ &rest args)
      (if args
@@ -215,3 +238,47 @@ non-embeddable! yeah!
 (defunwalk or-form (body)
   `(_or ,@(unwalk-all! body)))
 
+;;def
+(defclass def (block-mixin walker)
+  ((name :initarg :name)
+   (body :initarg :body
+	 :initform nil)
+   (args :initarg :args)))
+(defwalk def (_ name args &rest body)
+  (let ((default 
+	 (new-form
+	  'def :name name :args args
+	  :body (w/block (walk-all! body)))))
+    (if (in-block?)
+	default
+	(prog1 (var! name)
+	  (format t "def parent is ~A" *parent*)
+	  (call-parent (lambda (ret) (print "PARENT")
+			 (new-form 'implicit-progn
+				   :body (list default ret))))))))
+
+(defunwalk def (name args body)
+  `(_def ,name ,args ,@(unwalk-all! body)))
+;;class-form
+(defclass class-form (block-mixin walker)
+  ((name :initarg :name)
+   (body :initarg :body
+	 :initform nil)
+   (super :initarg :super)))
+(defwalk class (_ name super &rest body)
+  (let ((default 
+	 (new-form
+	  'class-form :name name :super super
+	  :body (w/block (walk-all! body)))))
+    (if (in-block?)
+	default
+	(prog1 (var! name) 
+	  (call-parent (lambda (ret) 
+			 (new-form 'implicit-progn
+				   :body (list default ret))))))))
+
+(defunwalk class-form (name super body)
+  `(_class ,name ,super ,@(unwalk-all! body)))
+
+(defmac lambda (args &rest body)
+  `(def ,(gensym) ,args ,@body))
