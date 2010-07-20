@@ -1,5 +1,5 @@
 (in-package :goby)
-(defparameter *py-macros* (make-hash-table :test #'equalp))
+(defvar  *py-macros* (make-hash-table :test #'equalp))
 (defun macro? (arg) (gethash arg *py-macros*))
 (defun mac-function (arg) (macro? arg))
 (defun mac-function! (arg func) (setf (gethash arg *py-macros*) func))
@@ -22,3 +22,8 @@
 	   ((macro? func) (values (apply (mac-function func) (cdr form)) t))
 	   (t (values form nil)))))))))
 
+(defun mexpand-all (form)
+  (let ((expanded (mexpand form)))
+    (if (macro? (and (listp expanded) (first expanded)))
+	(mexpand-all expanded)
+	expanded)))
