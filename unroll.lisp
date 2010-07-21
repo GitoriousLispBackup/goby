@@ -1,20 +1,26 @@
 (in-package :goby)
+
 ;----------------------------------------------------------------------
 (defroll atom (value) 
   (condenv value (set! retv value) value))
 
+(defunroll macro-unroll (form)
+  (unroll (mexpand-all form) :retv retv :in-block in-block))
+
 (defroll progn ((_ &rest arguments))
-  (let ((default `(progn ,@(unroll-all! (butlast arguments))
-			 ,(unroll-block! (last1 arguments) retv))))
+  (print arguments)
+  (let ((default `(,@(unroll-all! (butlast arguments))
+		     ,(unroll-block! (last1 arguments) retv))))
+    (format t "default is ~A" default)
     (condenv default default (values retv default))))
 
 (defroll if ((_ test then &optional else))
   (let (((:values test-retv test-outer) (unroll-arg! test))
 	(unrolled-then (unroll-block! then retv))
 	(unrolled-else (unroll-block! else retv))
-	(default `(progn ,@test-outer (if ,test-retv ,unrolled-then ,unrolled-else))))
+	(default `(progn ,@test-outer (_if ,test-retv ,unrolled-then ,unrolled-else))))
    (condenv default default (values retv (list default)))))
-;(unroll '(= (+ 2 (gr)) (if 2 3)))
+
 (defroll function ((name &rest arguments))
   (let (((:values arg-list outer-block) (unroll-args! arguments)))
     (cond
@@ -30,33 +36,41 @@
 (defroll def ((_ name args &rest body))
   (let ((unrolled-body (unroll-blocks! body)))
     (condenv
-     `(def ,name ,args ,@unrolled-body)
-     `(progn (def ,name ,args ,@unrolled-body) ,(set! retv name))
-     (values retv `((def ,name ,args ,@unrolled-body) ,(set! retv name))))))
+     `(_def ,name ,args ,@unrolled-body)
+     `(progn (_def ,name ,args ,@unrolled-body) ,(set! retv name))
+     (values retv `((_def ,name ,args ,@unrolled-body) ,(set! retv name))))))
 
 (defroll class ((_ name super &rest body))
   (let ((unrolled-body (unroll-blocks! body)))
     (condenv
-     `(class ,name ,super ,@unrolled-body)
-     `(progn (class ,name ,super ,@unrolled-body) ,(set! retv name))
-     (values retv `((class ,name ,super ,@unrolled-body) ,(set! retv name))))))
+     `(_class ,name ,super ,@unrolled-body)
+     `(progn (_class ,name ,super ,@unrolled-body) ,(set! retv name))
+     (values retv `((_class ,name ,super ,@unrolled-body) ,(set! retv name))))))
 
-(defunroll macro-unroll (form)
-  (unroll (mexpand-all form) :retv retv :in-block in-block))
+(defmac while (test &rest body)
+  `(progn (_while ,test ,@body) ,*default*))
+(defmac for (clauses &rest body)
+  `(progn (_for ,clauses ,@body) ,*default*))
 ;--------------------------------------------
 ;--------------------------------------------
 ;--------------------------------------------
 ;--------------------------------------------
+(defun special? (form)
+  (if (listp form)
+      (case (first form)
+	((_if _=  _def _while _for _import _from _class) t)
+	(t nil))))
 
 (defmacro call-unroll (arg) `(,(symbolicate arg "-unroll") form :in-block in-block :retv retv))
 (defunroll unroll (form)
   (cond
+    ((special? form) form)
     ((or (atom form) (null form)) (atom-unroll (or form *default*) :in-block in-block :retv retv))
     ((macro? (first form)) (macro-unroll form :in-block in-block :retv retv))
     (t
      (case (first form)
        (if (call-unroll if))
-       (progn (call-unroll  progn))
+       (progn  (call-unroll  progn))
        (def (call-unroll def))
        (class (call-unroll class))
        (t (call-unroll  function))))))
