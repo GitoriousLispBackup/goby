@@ -14,7 +14,7 @@
 	(unrolled-else (unroll-block! else retv))
 	(default `(progn ,@test-outer (if ,test-retv ,unrolled-then ,unrolled-else))))
    (condenv default default (values retv (list default)))))
-
+;(unroll '(= (+ 2 (gr)) (if 2 3)))
 (defroll function ((name &rest arguments))
   (let (((:values arg-list outer-block) (unroll-args! arguments)))
     (cond
@@ -40,21 +40,29 @@
      `(class ,name ,super ,@unrolled-body)
      `(progn (class ,name ,super ,@unrolled-body) ,(set! retv name))
      (values retv `((class ,name ,super ,@unrolled-body) ,(set! retv name))))))
+
+(defunroll macro-unroll (form)
+  (unroll (mexpand-all form) :retv retv :in-block in-block))
+;--------------------------------------------
+;--------------------------------------------
+;--------------------------------------------
 ;--------------------------------------------
 
 (defmacro call-unroll (arg) `(,(symbolicate arg "-unroll") form :in-block in-block :retv retv))
 (defunroll unroll (form)
   (cond
     ((or (atom form) (null form)) (atom-unroll (or form *default*) :in-block in-block :retv retv))
-    ((listp form)
+    ((macro? (first form)) (macro-unroll form :in-block in-block :retv retv))
+    (t
      (case (first form)
-       (if (call-unroll  if))
+       (if (call-unroll if))
        (progn (call-unroll  progn))
        (def (call-unroll def))
        (class (call-unroll class))
        (t (call-unroll  function))))))
 (defunroll top-unroll (form)
   (unroll form :in-block t))
+
 ;;TODO: implement macros, symbol-macrolets, macrolet, lexical-let, compiler-let
 ;;you better make them easy to implement and 'plugin!' (or else!)
 

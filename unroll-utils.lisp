@@ -16,7 +16,8 @@
       (iter
 	(for arg in args)
 	(let (((:values ret outer) (unroll-arg! arg)))
-	  (if (and (symbolp ret) (null outer))
+	  ;;force everything except constants to be on the outer edge!
+	  (if (and (not (constant? ret)) (null outer))
 	      (let ((gen (gensym)))
 		(collecting (set! gen ret) into outer-code)
 		(collecting gen into argument-list))
