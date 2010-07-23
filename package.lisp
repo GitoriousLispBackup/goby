@@ -2,9 +2,10 @@
 (in-package :goby)
 (defmacro let (&rest args) `(metabang-bind:bind ,@args))
 
-(defvar *false* '|False|)
-(defvar *true* '|True|)
+(defvar |False| '|False|)
+(defvar |True| '|True|)
+
 (set-dispatch-macro-character
- #\# #\f (lambda (stream char1 char2) `(quote ,*false*)))
+ #\# #\f (lambda (stream char1 char2) '|False|))
 (set-dispatch-macro-character
- #\# #\t (lambda (stream char1 char2) `(quote ,*true*)))
+ #\# #\t (lambda (stream char1 char2) '|True|))

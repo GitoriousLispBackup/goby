@@ -1,9 +1,8 @@
+;;todo: why does (unroll '(bam (boom))) (py '(if (or 2 3) 3))
 (in-package :goby)
 ;;(if 2 (progn 3 4) 23)
 ;;(or 2 3 4)
-
 ;;TODO: try statement, with statement, in, read manual please!
-
 ;----------------------------------------------------------------------
 (defroll atom (value) 
   (condenv value (set! retv value) value))
@@ -11,8 +10,8 @@
 (defroll setq ((_ var val))
   (let (((:values ret outer) (unroll-arg! val)))
     (condenv
-     `(progn ,@outer ,(set! var ret))
-     `(progn ,@outer ,(set! var ret) ,(set! retv var))
+     `(:progn ,@outer ,(set! var ret))
+     `(:progn ,@outer ,(set! var ret) ,(set! retv var))
      (values retv `(,@outer ,(set! var ret) ,(set! retv var))))))
 
 (defunroll macro-unroll (form)
@@ -43,7 +42,9 @@
 ;-------------------------------------------
 ;def and class
 (defroll def ((_ name args &rest body))
-  (let ((unrolled-body (unroll-blocks! body)))
+  (let ((unrolled-body (unroll-blocks!
+			body
+			(lambda (arg) `(:function |return| ,arg)))))
     (condenv
      `(:def ,name ,args ,@unrolled-body)
      `(:progn (:def ,name ,args ,@unrolled-body) ,(set! retv name))
@@ -53,8 +54,10 @@
   (let ((unrolled-body (unroll-blocks! body)))
     (condenv
      `(:class ,name ,super ,@unrolled-body)
-     `(:progn (:class ,name ,super ,@unrolled-body) ,(set! retv name))
-     (values retv `((:class ,name ,super ,@unrolled-body) ,(set! retv name))))))
+     `(:progn (:class ,name ,super ,@unrolled-body)
+	      ,(set! retv name))
+     (values retv `((:class ,name ,super ,@unrolled-body)
+		    ,(set! retv name))))))
 
 
 

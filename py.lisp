@@ -1,54 +1,49 @@
 (in-package :goby)
+;;TODO: for some odd, weird reason, py takes *forever*!!! fix eventually!
 ;-------------------------------------------------
 (defemit :def (name args &rest body)
-  (out "def ~A ~A:~%" name (arg-list args))
-  (emit-block body))
+  (out "def ~A (~A):~%" name (arg-list args))
+  (indent (emit-block body)))
 
 (defemit :while (test &rest body)
   (out "while ~A:~%" (emit! test))
-  (emit-block body))
+  (indent (emit-block body)))
 
 (defemit :import (module)
   (assert (symbolp module))
   (out "import ~A~%" module))
 
-(defemit :from (package &rest modules)
-  (assert (every #'symbolp modules))
+(defemit :from (package _ modules)
+  (assert (every #'symbolp (mklst modules)))
   (assert (symbolp package))
-  (out "from ~A import ~A~%" package (arg-list modules)))
+  (assert (equalp _ 'import))
+  (out "from ~A import ~A~%" package (arg-list (mklst modules))))
 
 (defemit :progn (&rest body)
   (emit-block body))
 
 (defemit :class (name super &rest body)
   (out "class ~A ~A:~%" name super)
-  (emit-block body))
+  (indent (emit-block body)))
 
 (defemit := (variable value)
   (out "~A = ~A~%" variable (emit! value)))
 
 (defemit :if (test then &optional else)
   (out "if ~A:~%" (emit! test))
-  (emit then)
+  (indent (emit then))
   (when else
     (fresh)
     (out "else:~%")
-    (emit else)))
+    (indent (emit else))))
 
 (defemit :function (name &rest args)
   (out "~A(~A)" name (arg-list args)))
 
-(defemit :atom (val) (out "~A" val))
+(defemit :atom val (out "~S" val))
 
-;(define-multiple-binary + - * / % ** << >> and or)
-;(define-single-binary =)
-
-#|
-(defbinary = (form1 form2)
-  (out "(~A==~A)" (emit! form1) (emit! form2)))
-(defbinary + (&rest args)
-  (out "(~{~A~^+~})" (mapcar #'emit! args)))
-|#
+(define-multiple-binary + - * / % ** << >> and or)
+(define-single-binary (= ==))
 							  
 
 
