@@ -2,7 +2,7 @@
 
 (defun constant? (sym) (or (numberp sym) (stringp sym)))
 (defvar *default* '|None|)
-(defun set! (var val) `(_= ,var ,val))
+(defun set! (var val) `(:= ,var ,val))
 (defun unroll-arg! (form &optional in-block) (unroll form :retv (gensym) :in-block in-block))
 (defun unroll-block! (form &optional retv) (unroll form :retv retv :in-block t))
 (defun unroll-blocks! (forms &optional retv) (mapcar (lambda (x) (unroll-block! x retv)) forms))
