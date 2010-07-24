@@ -9,4 +9,4 @@
    (:file "unroll")
    (:file "py-utils")
    (:file "py"))
-  :depends-on (iterate metabang-bind))
+  :depends-on (iterate metabang-bind fset))

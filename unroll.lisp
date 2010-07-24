@@ -1,35 +1,48 @@
 ;;todo: why does (unroll '(bam (boom))) (py '(if (or 2 3) 3))
 (in-package :goby)
+;;todo : can we quicken things by getting rid of all hash look up per type like we had before
 ;;(if 2 (progn 3 4) 23)
 ;;(or 2 3 4)
 ;;TODO: try statement, with statement, in, read manual please!
 ;----------------------------------------------------------------------
-(defroll atom (value) 
-  (condenv value (set! retv value) value))
 
-(defroll setq ((_ var val))
+(defunroll atom value
+  (if (symbol-macro? value)
+      (unroll (symbol-macro-function value))
+      (condenv value (set! retv value) value)))
+
+(defunroll symbol-macrolet (_ bindings &rest body)
+  (declare (ignorable _))
+  (let ((*symbol-macros* (with-all *symbol-macros* bindings)))
+    (unroll `(progn ,@body) :retv retv :in-block in-block)))
+
+(defunroll setq (_ var val)
+  (declare (ignorable _))
   (let (((:values ret outer) (unroll-arg! val)))
     (condenv
      `(:progn ,@outer ,(set! var ret))
      `(:progn ,@outer ,(set! var ret) ,(set! retv var))
      (values retv `(,@outer ,(set! var ret) ,(set! retv var))))))
 
-(defunroll macro-unroll (form)
+(defunroll macro form
   (unroll (mexpand-all form) :retv retv :in-block in-block))
 
-(defroll progn ((_ &rest arguments))
+(defunroll progn (_ &rest arguments)
+  (declare (ignorable _))
   (let ((default `(,@(unroll-all! (butlast arguments))
 		   ,(unroll-block! (last1 arguments) retv))))
     (condenv `(:progn ,@default) `(:progn ,@default) (values retv default))))
 
-(defroll if ((_ test then &optional else))
+(defunroll if (_ test then &optional else)
+  (declare (ignorable _))
   (let (((:values test-retv test-outer) (unroll-arg! test))
 	(unrolled-then (unroll-block! then retv))
 	(unrolled-else (unroll-block! else retv))
 	(default `(:progn ,@test-outer (:if ,test-retv ,unrolled-then ,unrolled-else))))
    (condenv default default (values retv (list default)))))
 
-(defroll function ((name &rest arguments))
+(defunroll default (name &rest arguments)
+  (assert (symbolp name) nil "in function, ~A is not a valid function name" name)
   (let (((:values arg-list outer-block) (unroll-args! arguments)))
     (cond
       ((and (null outer-block) (not in-block)) `(:function ,name ,@arg-list))
@@ -41,7 +54,7 @@
 
 ;-------------------------------------------
 ;def and class
-(defroll def ((_ name args &rest body))
+(defunroll def ((_ name args &rest body))
   (let ((unrolled-body (unroll-blocks!
 			body
 			(lambda (arg) `(:function |return| ,arg)))))
@@ -50,7 +63,7 @@
      `(:progn (:def ,name ,args ,@unrolled-body) ,(set! retv name))
      (values retv `((:def ,name ,args ,@unrolled-body) ,(set! retv name))))))
 
-(defroll class ((_ name super &rest body))
+(defunroll class ((_ name super &rest body))
   (let ((unrolled-body (unroll-blocks! body)))
     (condenv
      `(:class ,name ,super ,@unrolled-body)
@@ -66,25 +79,18 @@
 ;--------------------------------------------
 ;--------------------------------------------
 (defun special? (form)
-  (if (listp form)
-      (keywordp (first form))))
+  (and (listp form) (keywordp (first form))))
 
-(defmacro call-unroll (arg) `(,(symbolicate arg "-unroll") form :in-block in-block :retv retv))
-(defunroll unroll (form)
-  (cond
-    ((special? form) form)
-    ((or (atom form) (null form)) (atom-unroll (or form *default*) :in-block in-block :retv retv))
-    ((macro? (first form)) (macro-unroll form :in-block in-block :retv retv))
-    (t
-     (case (first form)
-       (setq (call-unroll setq))
-       (if (call-unroll if))
-       (progn  (call-unroll  progn))
-       (def (call-unroll def))
-       (class (call-unroll class))
-       (t (call-unroll  function))))))
+(defun unroll (form &key retv in-block)
+  (call-unroll
+   (cond
+     ((special? form) nil)
+     ((or (atom form) (null form)) 'atom)
+     ((macro? (first form)) 'macro)
+     (t (first form)))
+   form :retv retv :in-block in-block))
 
-(defunroll top-unroll (form)
+(defun top-unroll (form)
   (unroll form :in-block t))
 
 ;;TODO: symbol-macrolets, macrolet, lexical-let, compiler-let

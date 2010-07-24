@@ -7,6 +7,13 @@
 
 (defun strcat (&rest args) (apply #'concatenate 'string args))
 
+(defun with-all (initial-map bindings)
+  (iter
+    (for bind in bindings)
+    (for map initially (fset:with initial-map (first bind) (second bind)) then (fset:with map (first bind) (second bind)))
+    (finally (return map))))
+
+
 (define-modify-macro strcatf (&rest args) strcat)
 (defun symbolicate (&rest symbols)
   (read-from-string

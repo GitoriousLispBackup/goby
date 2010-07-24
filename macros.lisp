@@ -1,18 +1,23 @@
 (in-package :goby)
-#|
-(defmac while (test &rest body)
-  `(progn (_while (= 1 1) (if ,test (break)) ,@body) ,*default*))
-(defmac for (clauses &rest body)
-  `(progn (_for ,clauses ,@body) ,*default*))
-|#
 
-(defmac lambda (args &rest body)
+(defmac fn (args &rest body)
   `(def ,(gensym "lambda") ,args ,@body))
 
-(defmac let (bindings &rest body)
+(defmac let! (bindings &rest body)
   `(progn ,@(iter
 	     (for (var val) in bindings)
 	     (collecting `(setq ,var ,val))) ,@body))
+
+(defmac let (bindings &rest body)
+  `(symbol-macrolet
+       ,(iter
+	 (for bind in bindings)
+	 (collecting `(,(first bind)
+			,(gensym (strcat (string (first bind)) "_lex")))))
+     (let! ,bindings
+	   ,@body)))
+
+
 ;;TODO: make into what a normal python user would use!
 (defmac or (&rest forms &aux (first-gen (gensym)))
   (if (null (cdr forms))
