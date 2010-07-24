@@ -1,18 +1,19 @@
 ;;todo: why does (unroll '(bam (boom))) (py '(if (or 2 3) 3))
 (in-package :goby)
 ;;todo : can we quicken things by getting rid of all hash look up per type like we had before
-;;(if 2 (progn 3 4) 23)
-;;(or 2 3 4)
-;;TODO: try statement, with statement, in, read manual please!
 ;----------------------------------------------------------------------
 
 (defunroll atom value
-  (if (symbol-macro? value)
-      (unroll (symbol-macro-function value))
-      (condenv value (set! retv value) value)))
+  (cond
+    ((null value) (unroll *default* :in-block in-block :retv retv))
+    ((symbol-macro? value)
+     (unroll (symbol-macro-function value) :in-block in-block :retv retv))
+    (t (condenv value (set! retv value) value))))
+
 
 (defunroll symbol-macrolet (_ bindings &rest body)
   (declare (ignorable _))
+  
   (let ((*symbol-macros* (with-all *symbol-macros* bindings)))
     (unroll `(progn ,@body) :retv retv :in-block in-block)))
 
@@ -25,7 +26,7 @@
      (values retv `(,@outer ,(set! var ret) ,(set! retv var))))))
 
 (defunroll macro form
-  (unroll (mexpand-all form) :retv retv :in-block in-block))
+  (unroll (mexpand-all form :retv retv :in-block in-block) :retv retv :in-block in-block))
 
 (defunroll progn (_ &rest arguments)
   (declare (ignorable _))
@@ -50,11 +51,41 @@
        (condenv
 	`(:progn ,@outer-block (:function ,name ,@arg-list))
 	`(:progn ,@outer-block ,(set! retv `(:function ,name ,@arg-list)))
-	(values retv `(,@outer-block ,(set! retv `(:function ,name ,@arg-list)))))))))
+	(values retv `(,@outer-block
+		       ,(set! retv `(:function ,name ,@arg-list)))))))))
+
+;;TODO: implicit progn
+(defunroll try (_ body &rest clauses)
+  (let ((ret (unroll-block! body retv))
+	(expanded-clauses
+	 (iter
+	   (for clause in clauses)
+	   (assert (listp clause))
+	   (if (keywordp (first clause))
+	       (collecting `(,(first clause)
+			      ,(unroll-block! `(progn ,@(cdr clause)))))
+	       (collecting `(:except (,(first clause) ,(second clause))
+				     ,(unroll-block!
+					`(progn ,@(cddr clause)))))))))
+    (condenv
+     `(:try ,ret ,expanded-clauses)
+     `(progn  ,(set! retv *default*) (:try ,ret ,expanded-clauses))
+     (values retv `(,(set! retv *default*) (:try ,ret ,expanded-clauses))))))
 
 ;-------------------------------------------
 ;def and class
-(defunroll def ((_ name args &rest body))
+(defunroll break (_ &optional ret)
+  (condenv
+   `(:break)
+   `(:progn ,(set! retv ret) (:break))
+   (values retv `(:progn ,(set! retv ret) (:break)))))
+
+(defunroll continue (_)
+  (condenv
+   `(:continue) `(:continue)
+   (values nil `(:continue))))
+
+(defunroll def (_ name args &rest body)
   (let ((unrolled-body (unroll-blocks!
 			body
 			(lambda (arg) `(:function |return| ,arg)))))
@@ -63,7 +94,7 @@
      `(:progn (:def ,name ,args ,@unrolled-body) ,(set! retv name))
      (values retv `((:def ,name ,args ,@unrolled-body) ,(set! retv name))))))
 
-(defunroll class ((_ name super &rest body))
+(defunroll class (_ name super &rest body)
   (let ((unrolled-body (unroll-blocks! body)))
     (condenv
      `(:class ,name ,super ,@unrolled-body)

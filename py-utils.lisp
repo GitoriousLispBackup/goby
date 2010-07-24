@@ -34,16 +34,19 @@
 (defmacro defemit (name args &body body)
   `(setf (gethash ',name *py-hash*)
 	 (lambda (form)
-	   (let ((,args form))
+	   ,(if (null args)
+		`(progn ,@body)
+		`(let ((,args form))
 	    
-	     ,@body))))
+		   ,@body)))))
 
 (defmacro define-multiple-binary (&rest args)
   `(progn ,@(iter
 	     (for arg in args)
 	     (collecting `(defemit ,arg (&rest args)
-			    (out ,(strcat "(~{~A~^" (string arg) "~})")
+			    (out ,(strcat "(~{ ~A ~^" (string arg) "~})")
 				 (mapcar #'emit! args)))))))
+
 (defmacro define-single-binary (&rest args)
   `(progn
      ,@(iter
@@ -52,8 +55,8 @@
 	  (collecting
 	   `(defemit ,name
 		(form1 form2)
-	      (out ,(strcat "(~A" (if (listp arg)
-				      (string (second arg)) (string arg)) "~A)")
+	      (out ,(strcat "(~A " (if (listp arg)
+				      (string (second arg)) (string arg)) " ~A)")
 		   (emit! form1) (emit! form2))))))))
 							   
 (defun out (format-string &rest args)

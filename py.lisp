@@ -1,11 +1,39 @@
 (in-package :goby)
 ;;TODO: for some odd, weird reason, py takes *forever*!!! fix eventually!
 ;-------------------------------------------------
+(defemit :continue ()
+  (fresh) (out "continue~A"))
+
+(defemit :while (test body)
+  (fresh)
+  (out "while ~A:~%" test)
+  (indent (emit body)))
+(defemit :pass ()
+  (fresh)
+  (out "pass~%"))
+(defemit :try (body clauses)
+  (fresh)
+  (out "try:~%")
+  (indent
+   (emit body))  
+  (iter
+    (fresh)
+    (for clause in clauses)
+    (ecase (first clause)
+      (:except
+       (if (null (second (second clause)))
+	   (out "except ~A:~%" (first (second clause)))
+	   (out "except ~A as ~A:~%" (first (second clause))
+		 (second (second clause))))
+       (indent (emit (third clause))))
+      ((:else :finally)
+       (out "~A:~%" (case (first clause) (:else "else") (:finally "finally")))
+       (indent (emit (second clause)))))))
+
 (defemit :def (name args &rest body)
   (fresh)
   (out "def ~A (~A):~%" name (arg-list args))
   (indent (emit-block body)))
-
 
 (defemit :while (test &rest body)
   (fresh)
@@ -45,13 +73,20 @@
     (out "else:~%")
     (indent (emit else))))
 
+(defemit :break nil
+  (fresh)
+  (out "break~%"))
+
 (defemit :function (name &rest args)
   (out "~A(~A)" name (arg-list args)))
 
-(defemit :atom val (out "~S" val))
+(defemit :atom val
+  (if (stringp val)
+      (out "~S" val)
+      (out "~A" val)))
 
-(define-multiple-binary + - * / % ** << >> and or)
-(define-single-binary (= ==))
+(define-multiple-binary + - * / % ** << >> > >= < <= and or)
+(define-single-binary (= ==) in)
 							  
 
 

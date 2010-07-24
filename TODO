@@ -1,0 +1,7 @@
+(while #t)
+(print (progn 2 nil)))
+(print (fn (x) (print x))))
+(print (while (< i 3) (break 4))))
+(print (cond ((= 2 2) 4) ((= a 2) "MOON"))))
+
+else if

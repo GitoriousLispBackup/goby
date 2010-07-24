@@ -1,6 +1,10 @@
 (in-package :goby)
 
-(defun constant? (sym) (or (numberp sym) (stringp sym)))
+(defun constant? (sym) (or (numberp sym) (stringp sym)
+			   (equalp sym #f)
+			   (equalp sym #t)
+			   (equalp sym *default*)))
+
 (defvar *default* '|None|)
 
 (defun set! (var val)
@@ -9,9 +13,20 @@
       (funcall var val)
       `(:= ,(call-unroll 'atom var) ,val)))
 
-(defun unroll-arg! (form &optional in-block) (unroll form :retv (gensym) :in-block in-block))
-(defun unroll-block! (form &optional retv) (unroll form :retv retv :in-block t))
-(defun unroll-blocks! (forms &optional retv) (mapcar (lambda (x) (unroll-block! x retv)) forms))
+(defun unroll-arg! (form &optional in-block)
+  (unroll form :retv (gensym) :in-block in-block))
+
+(defun unroll-block! (form &optional retv)
+  (if (and (null form) (not retv))
+      `(:pass)
+      (let ((ret (unroll form :retv retv :in-block t)))
+	ret)))
+
+(defun unroll-blocks! (forms &optional retv)
+  (if (and (null forms) (not retv))
+      `((:pass))
+      (mapcar (lambda (x) (unroll-block! x retv)) forms)))
+
 (defun unroll-all! (form) (mapcar #'unroll form))
 
 (defvar *symbol-macros* (fset:empty-map))
@@ -20,15 +35,22 @@
 
 (defun symbol? (s) (and (symbolp s) (not (symbol-macro? s))))
 
-;;TODO: fix, make more efficient
+
+
+
+(defun is-function (ret lst)
+  (if (and (listp ret) (equalp (first ret) :function))
+      (member (second ret) lst)))
+(defvar *in-function* nil)
+;;TODO: fix, more efficient, and smarter, for example (unroll '(bam (boom))) doesn't do too well
 (defun unroll-args! (args)
-  (if (every (lambda (x) (or (constant? x) (symbol? x))) args)
+  (if (and (not *in-function*) (every (lambda (x) (or (constant? x) (symbol? x))) args))
       args
       (iter
 	(for arg in args)
-	(let (((:values ret outer) (unroll-arg! arg)))
-	  ;;force everything except constants to be on the outer edge!
-	  (if (and (not (constant? ret)) (null outer))
+	(let (((:values ret outer) (let ((*in-function* t))  (unroll-arg! arg))))
+	  ;;force everything except constants and certain in-built functions to be on the outer edge!
+	  (if (and (not (constant? ret)) (null outer) (not (is-function ret '(+ - * / ** << >> % str int float not))))
 	      (let ((gen (gensym)))
 		(collecting (set! gen ret) into outer-code)
 		(collecting gen into argument-list))
@@ -39,10 +61,11 @@
 
 (defvar *unroll-hash* (make-hash-table :test #'equalp))
 (defun call-unroll (sym form &key in-block retv)
-  (if sym
-      (aif (gethash sym *unroll-hash*)
-	   (funcall it form in-block retv)
-	   (funcall (gethash 'default *unroll-hash*) form in-block retv))))
+  (if  sym
+   (aif (gethash sym *unroll-hash*)
+	(funcall it form in-block retv)
+	(funcall (gethash 'default *unroll-hash*) form in-block retv))
+   form))
 
 (defmacro defunroll (name form-bind &rest body)
   (let ((form-gen (gensym)))
