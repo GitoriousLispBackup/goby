@@ -9,4 +9,4 @@
    (:file "unroll")
    (:file "py-utils")
    (:file "py"))
-  :depends-on (iterate metabang-bind fset))
+  :depends-on (iterate metabang-bind fset cl-irregsexp named-readtables))

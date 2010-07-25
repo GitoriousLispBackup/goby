@@ -60,3 +60,14 @@
 	      nil
 	      (break)))
        ,@(unroll-blocks! body retv))))
+
+(defmac mvbind (binds form &rest body &aux (ret-gen (gensym)))
+  `(let! ((,ret-gen ,form))
+	 ,(set! `(:comma ,binds) ret-gen)
+	 ,@body))
+
+(defmac for (arg &rest body &aux (gen-arg (gensym)))
+  `(let! ((,gen-arg ,(second arg)))
+	 (:for ,(first arg) ,gen-arg
+	       ,@(unroll-blocks! body retv))))
+

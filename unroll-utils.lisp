@@ -5,13 +5,15 @@
 			   (equalp sym #t)
 			   (equalp sym *default*)))
 
-(defvar *default* '|None|)
-
+(defun literal? (obj) (and (listp obj) (equalp (first obj) :literal)))
 (defun set! (var val)
   "since we know that val is always a symbol, no need for in-block and retv stuff"
   (if (functionp var)
       (funcall var val)
-      `(:= ,(call-unroll 'atom var) ,val)))
+      (progn
+	(assert (or (and (listp var) (equalp (first var) :comma))
+		    (symbolp var)))
+	`(:= ,(unroll var) ,val))))
 
 (defun unroll-arg! (form &optional in-block)
   (unroll form :retv (gensym) :in-block in-block))
@@ -50,7 +52,8 @@
 	(for arg in args)
 	(let (((:values ret outer) (let ((*in-function* t))  (unroll-arg! arg))))
 	  ;;force everything except constants and certain in-built functions to be on the outer edge!
-	  (if (and (not (constant? ret)) (null outer) (not (is-function ret '(+ - * / ** << >> % str int float not))))
+	  ;;also exclude 'literals'
+	  (if (and (not (literal? ret)) (not (constant? ret)) (null outer) (not (is-function ret '(+ - * / ** << >> % str int float not))))
 	      (let ((gen (gensym)))
 		(collecting (set! gen ret) into outer-code)
 		(collecting gen into argument-list))

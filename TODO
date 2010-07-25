@@ -3,5 +3,17 @@
 (print (fn (x) (print x))))
 (print (while (< i 3) (break 4))))
 (print (cond ((= 2 2) 4) ((= a 2) "MOON"))))
+(print (mvbind (a b) (bam) 2))
+
+(ref a (literal b ":" c) (literal d ":" e ":" c)))
+(ref a (@ 3 b 4))
 
 else if
+
+error parsing checking:
+  for example, right now literal can only be used in a ref statement!
+  
+dot with [] syntax
+    (a[(print "HI") 4].jam 2)
+    ((literal (ref a (literal (print "HI") ":" 4) "." "jam")) 2)
+    

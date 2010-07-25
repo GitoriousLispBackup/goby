@@ -1,6 +1,45 @@
 (in-package :goby)
 ;;TODO: for some odd, weird reason, py takes *forever*!!! fix eventually!
 ;-------------------------------------------------
+;;todo: make tail recursive??!!!
+
+(defemit :ref (var by)
+  (assert (symbolp var))
+  (out "~A~A" var
+       (iter
+	 (with result = "")
+	 (for item in by)
+	 (cond
+	   ((literal? item)
+	    (strcatf result (format nil "[~{~A~}]" (cdr item))))
+	   ((listp item) (strcatf result (format nil "[~{~A~^:~}]" item)))
+	   (t (strcatf result (format nil "[~A]" item))))
+	 (finally (return result)))))
+
+(defun py-comma-list (comma-list &optional initial-list)
+  (if (listp comma-list)
+   (iter
+     (with result = "")
+     (for lst initially (mklst comma-list) then (cdr lst)) (until (null lst))
+     (for item = (car lst))
+     (assert (or (symbolp item) (listp item)) () "~A" item)
+     (if (listp item)
+	 (strcatf result (py-comma-list item))
+	 (strcatf result (string item) (if (cdr lst) "," "")))
+     (finally (return (if (not initial-list) (strcat "(" result ")") result))))
+   comma-list))
+
+
+
+(defemit :comma (form)
+  (fresh)
+  (out "~A" (py-comma-list form t)))
+
+(defemit :for (var-list value body)
+  (fresh)
+  (out "for ~A in ~A:~%" (py-comma-list var-list) value)
+  (indent (emit body)))
+
 (defemit :continue ()
   (fresh) (out "continue~A"))
 
@@ -62,7 +101,7 @@
 
 (defemit := (variable value)
   (fresh)
-  (out "~A = ~A~%" variable (emit! value)))
+  (out "~A = ~A~%" (emit! variable) (emit! value)))
 
 (defemit :if (test then &optional else)
   (fresh)

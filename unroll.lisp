@@ -3,12 +3,36 @@
 ;;todo : can we quicken things by getting rid of all hash look up per type like we had before
 ;----------------------------------------------------------------------
 
+;;todo: literal shouldn't be expose to user code?
+(defunroll literal (_ &rest args)
+  (let (((:values ret outer) (unroll-args! args)))
+    (values `(:literal ,@ret) outer)))
+
+(defmac @ (&rest args)
+  `(literal
+    ,@(butlast
+       (iter
+	 (for arg in args)
+	 (appending (list arg ":"))))))
+
+(defunroll ref (_ var &rest where)
+  (let (((:values ret outer-code) (unroll var :retv (gensym)))
+	((:values ret2 outer-code2) (unroll-args! where)))
+    (condenv
+     `(:progn ,@outer-code ,@outer-code2 (:ref ,ret ,ret2))
+     `(:progn ,@outer-code ,@outer-code2 ,(set! retv `(:ref ,ret ,ret2)))
+     (values retv `(,@outer-code
+		    ,@outer-code2 ,(set! retv `(:ref ,ret ,ret2)))))))
+
+;(a.b.c.d)
+
 (defunroll atom value
   (cond
     ((null value) (unroll *default* :in-block in-block :retv retv))
-    ((symbol-macro? value)
-     (unroll (symbol-macro-function value) :in-block in-block :retv retv))
-    (t (condenv value (set! retv value) value))))
+    (t (cond	   
+	 ((symbol-macro? value)
+	  (unroll (symbol-macro-function value) :in-block in-block :retv retv))
+	 (t (condenv value (set! retv value) value))))))
 
 
 (defunroll symbol-macrolet (_ bindings &rest body)
@@ -78,7 +102,7 @@
   (condenv
    `(:break)
    `(:progn ,(set! retv ret) (:break))
-   (values retv `(:progn ,(set! retv ret) (:break)))))
+   (values retv `(,(set! retv ret) (:break)))))
 
 (defunroll continue (_)
   (condenv
