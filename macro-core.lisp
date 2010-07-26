@@ -4,7 +4,12 @@
 (defun mac-function (arg) (macro? arg))
 (defun mac-function! (arg func) (setf (gethash arg *py-macros*) func))
 (defmacro defmac (name args &body body)
-  `(mac-function! ',name (lambda (retv in-block ,@args) ,@body)))
+  `(progn
+     (mac-function! ',name (lambda (retv in-block ,@args) ,@body)) 
+     (mac-function! ',(read-from-string (strcat "|" (string-downcase (string name)) "|")) (lambda (retv in-block ,@args) ,@body))
+     (export ',(read-from-string (strcat "|" (string-downcase (string name)) "|")) :goby)
+)
+)
 
 (defun mexpand (form &key retv in-block)
   (cond
