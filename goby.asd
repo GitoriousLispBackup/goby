@@ -10,6 +10,11 @@
    (:file "unroll")
    (:file "py-utils")
    (:file "py")
+   
+   (:file "user")
  
 )
-  :depends-on (iterate metabang-bind fset cl-irregsexp named-readtables))
+  :depends-on (iterate metabang-bind fset cl-irregsexp named-readtables
+		       ;;for my repl for right now
+		       iolib
+		       ))

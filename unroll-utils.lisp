@@ -69,10 +69,15 @@
 	(funcall it form in-block retv)
 	(funcall (gethash 'default *unroll-hash*) form in-block retv))
    form))
-
+(defun lower-case-symbol (nm)
+  (read-from-string (strcat "|" (string-downcase (string nm)) "|")))
 (defmacro defunroll (name form-bind &rest body)
   (let ((form-gen (gensym)))
     `(setf (gethash ',name *unroll-hash*)
+	   (lambda (,form-gen in-block retv)
+	     (let ((,form-bind ,form-gen)) ,@body))
+
+	   (gethash ',(lower-case-symbol name) *unroll-hash*)
 	   (lambda (,form-gen in-block retv)
 	     (let ((,form-bind ,form-gen)) ,@body)))))
 

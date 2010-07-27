@@ -1,4 +1,4 @@
-(defpackage :goby (:use :cl :iterate) (:shadow :cl :let) (:export :py :unroll :defmac))
+(defpackage :goby (:use :cl :iterate :iolib) (:shadow :cl :let) (:export :py :unroll :defmac))
 (in-package :goby)
 
 (defmacro let (&rest args) `(metabang-bind:bind,@args))
