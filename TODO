@@ -7,6 +7,10 @@
 
 (ref a (literal b ":" c) (literal d ":" e ":" c)))
 (ref a (@ 3 b 4))
+(ponder-result (|..| object (method 2 3) (method) property))
+(setq a-b (|..| (map-object 2 3) property))
+
+
 
 else if
 

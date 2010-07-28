@@ -45,9 +45,14 @@
       (member (second ret) lst)))
 (defvar *in-function* nil)
 ;;TODO: fix, more efficient, and smarter, for example (unroll '(bam (boom))) doesn't do too well
+(defun pythonify-args (args)
+  (iter (for arg in args)
+	(if (symbolp arg)
+	    (collecting (pythonify arg))
+	    (collecting arg))))
 (defun unroll-args! (args)
   (if (and (not *in-function*) (every (lambda (x) (or (constant? x) (symbol? x))) args))
-      args
+      (pythonify-args args)
       (iter
 	(for arg in args)
 	(let (((:values ret outer) (let ((*in-function* t))  (unroll-arg! arg))))

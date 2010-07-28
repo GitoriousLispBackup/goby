@@ -3,6 +3,19 @@
 ;;todo : can we quicken things by getting rid of all hash look up per type like we had before
 ;----------------------------------------------------------------------
 
+;;TODO: fix print, exec, and the like for which it is illegal to have return value!
+
+(defmac |..| (first-arg &rest args)
+  (if (null args)
+      first-arg
+      `(|..| (|.| ,first-arg ,(first args)) ,@(cdr args))))
+
+(defmac doto (object &rest function-calls &aux (object-gen (gensym)))
+  `(let! ((,object-gen ,object))
+	 ,@(iter
+	    (for call in function-calls)
+	    (collecting `(|.| ,object-gen ,call)))))
+
 ;;todo: literal shouldn't be expose to user code?
 (defunroll literal (_ &rest args)
   (let (((:values ret outer) (unroll-args! args)))
@@ -26,13 +39,41 @@
 
 ;(a.b.c.d)
 
+
+
+(defunroll |.| (_ object property &aux (object-gen (gensym)))
+  (let ((dotted-name
+	 (read-from-string
+	  (strcat (if (listp object) (string object-gen) (string object))
+		  "."
+		  (if (listp property)
+		      (progn
+			(assert (symbolp (first property)) ()
+				"in . ~A is not a propert function call" property)
+			(string (first property)))
+		      (string property))))))
+    (if (listp property)
+	(unroll `(progn ,@(if (listp object)
+			      `((setq ,object-gen ,object)))
+			(,dotted-name ,@(cdr property)))
+		:in-block in-block :retv retv)
+	(if (listp object)
+	    (unroll `(progn (setq ,object-gen ,object) ,dotted-name)
+		    :in-block in-block :retv retv)
+	    (unroll dotted-name :in-block in-block :retv retv)))))
+
+
 (defunroll atom value
   (cond
     ((null value) (unroll *default* :in-block in-block :retv retv))
-    (t (cond	   
-	 ((symbol-macro? value)
-	  (unroll (symbol-macro-function value) :in-block in-block :retv retv))
-	 (t (condenv value (set! retv value) value))))))
+    (t
+     (cond	   
+       ((symbol-macro? value)
+	(unroll (symbol-macro-function (pythonify value)) :in-block in-block :retv retv))
+       ((symbolp value)
+	(let ((python (pythonify value)))
+	 (condenv python (set! retv python) python)))
+       (t (condenv value (set! retv value) value))))))
 
 
 (defunroll symbol-macrolet (_ bindings &rest body)
@@ -66,17 +107,23 @@
 	(default `(:progn ,@test-outer (:if ,test-retv ,unrolled-then ,unrolled-else))))
    (condenv default default (values retv (list default)))))
 
+
 (defunroll default (name &rest arguments)
   (assert (symbolp name) nil "in function, ~A is not a valid function name" name)
-  (let (((:values arg-list outer-block) (unroll-args! arguments)))
-    (cond
-      ((and (null outer-block) (not in-block)) `(:function ,name ,@arg-list))
-      (t
-       (condenv
-	`(:progn ,@outer-block (:function ,name ,@arg-list))
-	`(:progn ,@outer-block ,(set! retv `(:function ,name ,@arg-list)))
-	(values retv `(,@outer-block
-		       ,(set! retv `(:function ,name ,@arg-list)))))))))
+  (let ((name (pythonify name)) (name-as-string (string name)))
+    (if (equalp (char name-as-string 0) #\.)
+	(unroll `(|.| ,(first arguments)
+		      (,(read-from-string (subseq name-as-string 1)) ,@(cdr arguments)))
+		:in-block in-block :retv retv)
+	(let (((:values arg-list outer-block) (unroll-args! arguments)))
+	  (cond
+	    ((and (null outer-block) (not in-block)) `(:function ,name ,@arg-list))
+	    (t
+	     (condenv
+	      `(:progn ,@outer-block (:function ,name ,@arg-list))
+	      `(:progn ,@outer-block ,(set! retv `(:function ,name ,@arg-list)))
+	      (values retv `(,@outer-block
+			     ,(set! retv `(:function ,name ,@arg-list)))))))))))
 
 ;;TODO: implicit progn
 (defunroll try (_ body &rest clauses)

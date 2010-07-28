@@ -1,7 +1,7 @@
 (in-package :goby)
 (defvar repl nil)
 (defun repl ()
-  (if sock (close sock))
+  (if repl (close repl))
   (let ((socket (make-socket)))
     (connect
      socket
