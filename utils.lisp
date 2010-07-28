@@ -1,7 +1,10 @@
 (in-package :goby)
 
 (defun pythonify (sym)
-  (read-from-string (cl-irregsexp:match-replace-all (string sym) ("-" "_"))))
+  (let ((str-sym (string sym)))
+    (if (string-equal str-sym "nil")
+	*default*
+	(read-from-string (cl-irregsexp:match-replace-all (string sym) ("-" "_"))))))
 
 (defun dot-split (str) (cl-irregsexp:match-split "." str))
 (defun last1 (lst) (first (last lst)))

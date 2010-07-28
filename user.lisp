@@ -6,13 +6,19 @@
     (connect
      socket
      (lookup-hostname "localhost")
-     :port 5555)
+     :port 5556)
     (setf repl socket)))
 (defun send (&rest args) (apply #'format repl args) (finish-output repl))
 
 (defun pypy (st)
   (let ((*readtable* (named-readtables:find-readtable :modern)))
-    (py (read-from-string (strcat "(setq toplevel (progn " st "))")))))
+    (py
+     (read-from-string
+      (format nil
+	      "(progn (setq toplevel (progn ~A))
+                         (print (+ (str toplevel)
+                                   \"\\\\n\")))
+" st )))))
 
 ;;todo: dispatch macros, lowercase, and nil, and print/exec/
 (defun pyval (st)

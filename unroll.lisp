@@ -62,6 +62,10 @@
 		    :in-block in-block :retv retv)
 	    (unroll dotted-name :in-block in-block :retv retv)))))
 
+(defunroll print (_ &rest values)
+  (let (((:values return-value outer-code) (unroll-args! values)))
+   (unroll `(progn ,@outer-code (:function |print| ,@return-value) nil)
+	   :retv retv :in-block in-block)))
 
 (defunroll atom value
   (cond

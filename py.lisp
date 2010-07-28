@@ -122,7 +122,7 @@
 
 (defemit :atom val
   (if (stringp val)
-      (out "~S" val)
+      (out "\"~A\"" val)
       (out "~A" val)))
 
 (define-multiple-binary + - * / % ** << >> > >= < <= and or)

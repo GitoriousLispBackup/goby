@@ -51,21 +51,19 @@
 	    (collecting (pythonify arg))
 	    (collecting arg))))
 (defun unroll-args! (args)
-  (if (and (not *in-function*) (every (lambda (x) (or (constant? x) (symbol? x))) args))
-      (pythonify-args args)
-      (iter
-	(for arg in args)
-	(let (((:values ret outer) (let ((*in-function* t))  (unroll-arg! arg))))
-	  ;;force everything except constants and certain in-built functions to be on the outer edge!
-	  ;;also exclude 'literals'
-	  (if (and (not (literal? ret)) (not (constant? ret)) (null outer) (not (is-function ret '(+ - * / ** << >> % str int float not))))
-	      (let ((gen (gensym)))
-		(collecting (set! gen ret) into outer-code)
-		(collecting gen into argument-list))
-	      (progn
-		(appending outer into outer-code)
-		(collecting ret into argument-list))))
-	(finally (return (values argument-list outer-code))))))
+  (iter
+    (for arg in args)
+    (let (((:values ret outer) (let ((*in-function* t))  (unroll-arg! arg))))
+      ;;force everything except constants and certain in-built functions to be on the outer edge!
+      ;;also exclude 'literals'
+      (if (and (not (literal? ret)) (not (constant? ret)) (null outer) (not (is-function ret '(+ - * / ** << >> % str int float not))))
+	  (let ((gen (gensym)))
+	    (collecting (set! gen ret) into outer-code)
+	    (collecting gen into argument-list))
+	  (progn
+	    (appending outer into outer-code)
+	    (collecting ret into argument-list))))
+    (finally (return (values argument-list outer-code)))))
 
 (defvar *unroll-hash* (make-hash-table :test #'equalp))
 (defun call-unroll (sym form &key in-block retv)
