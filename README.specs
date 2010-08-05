@@ -10,6 +10,7 @@ This gives an idea of how the core will look like, of course there will most def
 (symbol-mac (a b c d))                          ;;equivalent to symbol-macrolet                                     
 (bind (a 2 b 3))                                ;;bind dynamic vars, per thread basis
 (in variable something)                         ;;equivalent to python in statement
+(is 2 2)                                        ;;== in python
 (gensym)  
 
 (do (item1) (item2))                            ;;equivalent to lisp progn
