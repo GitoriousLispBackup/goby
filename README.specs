@@ -1,0 +1,116 @@
+##TODO: how to prevent import stuff from python from overidding everything!
+
+##########language spec
+In the meantime, I have some ideas on what the end result will look like in terms of syntax
+This gives an idea of how the core will look like, of course there will most definitely be supplementary constructs for functional programming
+
+
+(with (var1 val1 var2 val2) (do-something))     ;;binding local variabes
+(let var res (do-something))                    ;;binding a local variable
+(symbol-mac (a b c d))                          ;;equivalent to symbol-macrolet                                     
+(bind (a 2 b 3))                                ;;bind dynamic vars, per thread basis
+(in variable something)                         ;;equivalent to python in statement
+(gensym)  
+
+(do (item1) (item2))                            ;;equivalent to lisp progn
+
+(module.function arg1 arg2)                     ;;calling function in python
+
+(class a () (def m1 ()))                        ;;defining class
+(class a nil (def m1 ()))
+(def add (a b _ _) (+ a b))                     ;;defining function: can repeat variables, right most one is bound, also with &op &key &rest &aux
+(mac add (a b) `(+ ,a ,b))                      ;;defining macros - can repeat variables, right most one is bound
+(def add a (+ a b))                             ;;can leave out parentheses if it is one variable
+(defs add                                       ;;similar to clojure-like functions
+  (a (raise (Exception "error")))
+  ((b c) c))
+(macs add
+  ((&rest args) (pr args))
+  ((a b &op c) (pr args)))
+(defmulti ..)                                   ;;useful clojure-like multimethods
+(defmethod ...)
+
+
+(while #t (pr "HI"))                            ;;#t = True, #f = False, (pr &rest args) is equivalent to python print
+(on x (range 0 2) (pr x))                       ;;for loops
+[x for x in (range 0 2)]                        ;;python collectors, lisp loop like style instead of iteration like style below
+(: (for x in (range 0 2))                       ;;equivalent of iterate lisp library, except end = finally, and , = values or equivalently [2,3]
+   (collect x)
+   (end [2,3]))
+(if a b
+    c d
+    else-do-something)
+(case ...)
+(ecase ...)
+(guard (do-someting) (finally-do-this) (finally-do-this2))
+(try (do (statements)) (Exception e (pr e)) (else (pr 2)) (finally (pr 4)))
+
+(list 2 3)                                     ;;produce a python list
+[2,3]                                          ;;reader macro, produces python list
+(tuple 2 3)                                    ;;produce python tuple
+
+nil                                            ;;equal to None in python
+
+(ref symbol 2:3 [2,3])                         ;;equal to symbol[2:3][3,4]
+(ref symbol (literal ":" 2 3) (lit "," 3 4))   ;;same as above
+(ref symbol (colon 2 3) (comma 3 4))           ;;same as above
+symbol[2:3][(comma 3 4)]                       ;;same as above, also symbol[2:3][3,4]
+package.symbol[3:4]
+
+`(+ ~a ~b)                                    ;;classic backquote macro, notice commas are distinguished from above symbol macro commas
+`(+ a# b#)                                      ;;implicit gensym
+'a                                            ;;equivalent to (Symbol a)
+
+(fn (a b) (+ a b))                            ;;equal to lisp lambda
+#(is 1 %)
+map,filter
+
+(:Dictionary-key item)                        ;;reference dictionary, useful for duct typing classes
+{:a 2 :b 4}                                   ;;creating dictionary (look for clojure for useful other constructs?)
+(table {:a 2 :b 4})                           ;;create a discodb immutable dictionary
+(table "a" 2 "b" 3) 
+                                              ;;and then maybe some other cool functional-like collections?
+
+
+
+#########Implementing macros and reader macros and symbol macros
+we provide a goby.core module
+
+macros are defined by this:
+(= a (Macro ...)) and user macros are expanded by  
+(mac-expand1 '(a arg1 arg2))
+(mac-expand '(a arg1 arg2))
+(mac-expand core-list #t)
+
+macros can be core, in which they are only expanded if #t is passed, useful for 'inbuilt' operators
+
+##Reader phase
+goes through everything, calls symbol macros on all symbols, calls reader macros on appropriate thing, builds things like
+(a b c) = [Symbol(a,my_file),Symbol(b,my_file),Symbol(c,my_file)] where it evalautes whether it is function, macro, undefined, etc. it can be both a 
+                                                                  function and macro (gasp!).
+you can store other references in __goby__ for compiler macros, since if we define it as a function, we want to use pythons default function implementation
+
+##Macro phase
+and then once toplevel is done, everything is looped through, tested if it is function or macro and if has compiler macro, and then expanded and then (gasp) evaluated! as such, ve end!
+
+###--Evaluating imports 
+ currently, we dont need to wory, macro expansion phase is evaluated at each toplevel, therefore imports will be available.
+
+
+#########Import hooks
+all files ending in gb are evaluated using our awesome goby evaluator/compiler, by using import hook. and thats all!
+
+
+
+
+
+
+####NOTE: somehow the above will be highly customizable, i want to encourage the user to build his/her own unique programming environment
+####      also i want to encourage a utility-like development, so i will add something for that! yep!
+
+
+##TODO: look at qi's wonderful let and also wonderful readtable implementation! (cough cough)
+
+
+
+
