@@ -28,8 +28,6 @@ This gives an idea of how the core will look like, of course there will most def
 (macs add
   ((&rest args) (pr args))
   ((a b &op c) (pr args)))
-(defmulti ..)                                   ;;useful clojure-like multimethods
-(defmethod ...)
 
 
 (while #t (pr "HI"))                            ;;#t = True, #f = False, (pr &rest args) is equivalent to python print
@@ -73,6 +71,18 @@ map,filter
                                               ;;and then maybe some other cool functional-like collections?
 
 
+##rpython like speed
+im curious, if we have a program which can be infered with all statically typed (atleast the code flow is stable, types are stable), is it possible
+to create a JIT which will compile code gradually to speed of rpython code? this would be awesome as we could replace excuses of using c++ (speed)
+Also useful would be creating a subclass of a c++ class and calling  python functions for each method - again this could eventually be statically compiled
+once python functions are. the result - an optimized c++ program, but written in python! we would need tools to recognize how dynamic everything is and
+perhaps some type declarations of types and restricted classes. we would need to be able to define low level structures ,unions, etc. for type declaration,
+i like the lush model:
+
+((:int) a b c) ;;declare variable a b and c as int
+and also like
+(the :int a b c)
+and of course user declare types necessary (qi lisp is good to look at here, theyve developed types quite well!)
 
 #########Implementing macros and reader macros and symbol macros
 we provide a goby.core module
